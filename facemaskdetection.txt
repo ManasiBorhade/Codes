@@ -1,0 +1,112 @@
+
+# data preparation
+import os
+import cv2
+import numpy as np
+import pickle
+import random
+from sklearn.model_selection import train_test_split
+from sklearn.svm import SVC
+import matplotlib.pyplot as plt
+from sklearn.metrics import accuracy_score
+
+Imgdir = "/content/drive/MyDrive/Face Mask Detection/dataset"
+imgcat = ['with mask','without mask'] #folder names
+
+x = []
+y=[]
+for cat in imgcat:
+    path=os.path.join(Imgdir,cat) #image folder path
+    label = imgcat.index(cat)
+
+    print("path",path)
+
+    for img in os.listdir(path):
+        imgpath = os.path.join(path,img)
+        print("iamges path",imgpath)
+        mainimg=cv2.imread(imgpath)
+        mainimg=cv2.cvtColor(mainimg,cv2.COLOR_BGR2GRAY)
+        mainimg = cv2.resize(mainimg,(100,100)) # resizing same
+        imagd =  np.array(mainimg).flatten()  # converted into array
+        x.append(imagd)
+        y.append(label)
+        #cv2.imshow("frame",mainimg)
+        #cv2.waitKey(100)
+
+y=np.array(y)
+#network building
+from tensorflow import keras
+from keras.models import Sequential
+from keras.layers import Dense,Flatten,Activation,Conv2D,MaxPooling2D,Dropout
+Model = Sequential()
+Model.add(Conv2D(200,(3,3),input_shape = (100, 100, 1)))
+Model.add(Activation('relu'))
+Model.add(MaxPooling2D(pool_size = (2,2)))
+
+Model.add(Conv2D(200,(3,3),input_shape = (100, 100, 1)))
+Model.add(Activation('relu'))
+Model.add(MaxPooling2D(pool_size = (2,2)))
+
+Model.add(Flatten())
+Model.add(Dropout(0.5))
+Model.add(Dense(40,activation='relu'))
+Model.add(Dense(50,activation='relu'))
+Model.add(Dense(2,activation='sigmoid'))
+Model.compile(loss='binary_crossentropy',optimizer='adam',metrics=['accuracy'])
+Model.fit(x,y,epochs=50,batch_size=50,validation_split=0.2)
+Model.save('Model_facemask.model')
+
+# Object identification code
+from keras.models import  load_model
+import cv2
+import numpy as np
+from google.colab.patches import cv2_imshow
+model = load_model('/content/Model_facemask.model')
+label = {0:"With Mask",1:"WithOut Mask"}
+color={0:(0,255,0),1:(0,0,255)}
+maskclassifier=cv2.CascadeClassifier('/content/drive/MyDrive/Face Mask Detection/haarcascade_frontalface_default.xml')
+#img = cv2.VideoCapture('/content/photo.jpg')
+img=cv2.imread('/content/photo.jpg')
+gray=cv2.cvtColor(img,cv2.COLOR_BGR2GRAY)
+mask=maskclassifier.detectMultiScale(gray,1.1,5)
+
+for x,y,w,h in mask:
+  maskimg = gray[y:y+w,x:x+w]
+  maskimg = cv2.resize(maskimg,(100,100))
+  maskimg = maskimg/255.0
+  maskimg = np.reshape(maskimg,(1,100,100,1))
+  prediction = model.predict(maskimg)
+  labelnew = np.argmax(prediction,axis=1)[0]
+
+  cv2.rectangle(img,(x,y),(x+w,y+h),color[labelnew],2)
+  cv2.rectangle(img,(x,y-40),(x+w,y),color[labelnew],-1)
+  cv2.putText(img,label[labelnew],(x,y-10),cv2.FONT_HERSHEY_SIMPLEX,0.8,(255,255,255),2)
+  cv2_imshow(img)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+	
